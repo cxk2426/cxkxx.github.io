@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>音乐播放器</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            /* 添加背景图片 */
+            background-image: url('https://yan.gsiot.top/yz/sjmt.php');
+            background-size: cover;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+        }
+
+        #musicPlayer {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 300%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #modalContent {
+            background-color: white;
+            padding: 3px;
+            border-radius: 5px;
+        }
+
+        #closeModalButton {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            cursor: pointer;
+        }
+
+        #lrc {
+            overflow-y: auto;
+            overflow-x: hidden;
+            border: 1px solid #ccc;
+            padding: 5px;
+        }
+
+        /* 新增歌单弹窗样式 */
+        #playlistModal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 2;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #playlistModalContent {
+            background-color: white;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        #closePlaylistModalButton {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            cursor: pointer;
+        }
+
+        #playlist {
+            list-style-type: none;
+            padding: 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="musicPlayer">
+        <audio id="audioPlayer" controls></audio>
+        <input type="text" id="songNameInput" placeholder="输入歌名">
+        <input type="number" id="songIndexInput" placeholder="输入序号">
+        <button onclick="fetchMusicDataAndStore()">搜索歌曲</button>
+        <button onclick="playMusic()">播放音乐</button>
+        <button onclick="openModal()">查看详情</button>
+        <!-- 新增按钮来打开歌单弹窗 -->
+        <button onclick="openPlaylistModal()">查看歌单</button>
+    </div>
+    <div id="modal">
+        <div id="modalContent">
+            <span id="closeModalButton">&times;</span>
+            <h2 id="title"></h2>
+            <p id="singer">歌手: <span></span></p>
+            <img id="cover" width="200" alt="封面">
+            <pre id="lrc"></pre>
+        </div>
+    </div>
+    <!-- 新增歌单弹窗结构 -->
+    <div id="playlistModal">
+        <div id="playlistModalContent">
+            <span id="closePlaylistModalButton">&times;</span>
+            <h2>歌单列表</h2>
+            <ul id="playlist"></ul>
+        </div>
+    </div>
+    <script>
+        const audioPlayer = document.getElementById('audioPlayer');
+        const titleElement = document.getElementById('title');
+        const singerElement = document.getElementById('singer').querySelector('span');
+        const coverElement = document.getElementById('cover');
+        const lrcElement = document.getElementById('lrc');
+        const modal = document.getElementById('modal');
+        const closeModalButton = document.getElementById('closeModalButton');
+        const playlistModal = document.getElementById('playlistModal');
+        const closePlaylistModalButton = document.getElementById('closePlaylistModalButton');
+        const playlistElement = document.getElementById('playlist');
+
+        function fetchMusicDataAndStore() {
+            const songName = document.getElementById('songNameInput').value;
+            const songIndex = document.getElementById('songIndexInput').value;
+            const apiUrl = `https://www.hhlqilongzhu.cn//api/dg_qishuimusic.php?msg=${encodeURIComponent(songName)}&type=json&n=${songIndex}`;
+            fetch(apiUrl)
+              .then(response => response.json())
+              .then(data => {
+                    localStorage.setItem('musicData', JSON.stringify(data));
+                    console.log('数据已存储到localStorage');
+                })
+              .catch(error => {
+                    console.error('获取音乐数据失败:', error);
+                });
+        }
+
+        function playMusic() {
+            const musicData = JSON.parse(localStorage.getItem('musicData'));
+            if (musicData) {
+                audioPlayer.src = musicData.music;
+                audioPlayer.play();
+            } else {
+                console.error('未获取到音乐数据，请先获取并存储数据');
+            }
+        }
+
+        function fetchMusicData() {
+            const musicData = JSON.parse(localStorage.getItem('musicData'));
+            if (musicData) {
+                titleElement.textContent = musicData.title;
+                singerElement.textContent = musicData.singer;
+                coverElement.src = musicData.cover;
+                lrcElement.textContent = musicData.lrc;
+                setLrcHeight();
+            } else {
+                console.error('未获取到音乐数据，请先获取并存储数据');
+            }
+        }
+
+        function openModal() {
+            modal.style.display = 'block';
+            fetchMusicData();
+        }
+
+        function closeModal() {
+            modal.style.display = 'none';
+        }
+
+        function setLrcHeight() {
+            const screenHeight = window.innerHeight;
+            lrcElement.style.maxHeight = `${screenHeight / 3}px`;
+        }
+
+        function openPlaylistModal() {
+            const songName = document.getElementById('songNameInput').value;
+            const apiUrl = `https://www.hhlqilongzhu.cn/api/dg_douyinmusic.php?msg=${encodeURIComponent(songName)}&type=text`;
+            fetch(apiUrl)
+              .then(response => response.text())
+              .then(data => {
+                    const songs = data.split('\n').filter(song => song.trim()!== '');
+                    playlistElement.innerHTML = '';
+                    songs.forEach(song => {
+                        const listItem = document.createElement('li');
+                        listItem.textContent = song;
+                        playlistElement.appendChild(listItem);
+                    });
+                    playlistModal.style.display = 'block';
+                })
+              .catch(error => {
+                    console.error('获取歌单数据失败:', error);
+                });
+        }
+
+        function closePlaylistModal() {
+            playlistModal.style.display = 'none';
+        }
+
+        window.onload = () => {
+            closeModalButton.addEventListener('click', closeModal);
+            modal.style.display = 'none';
+            closePlaylistModalButton.addEventListener('click', closePlaylistModal);
+            playlistModal.style.display = 'none';
+        };
+    </script>
+</body>
+
+</html>
